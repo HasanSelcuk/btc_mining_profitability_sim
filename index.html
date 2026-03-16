@@ -1,13 +1,1269 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>btc_mining_calculator</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <title>Finansal Madencilik Simülatörü - ABC Enerji & Finans</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --teal:       #003B46;
+      --teal-mid:   #005566;
+      --teal-light: #006B7A;
+      --green:      #9AE66E;
+      --gold:       #D4AF37;
+      --gold-dim:   #a8892a;
+      --bg:         #F7FAFC;
+      --bg-card:    #FFFFFF;
+      --text:       #102027;
+      --text-dim:   #4a6572;
+      --border:     #d0dde2;
+      --amber:      #e8a020;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Geist', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .sim-wrapper { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    /* HEADER */
+    .sim-header { margin-bottom: 36px; }
+    .sim-header .label { font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+    .sim-header h1 { font-size: clamp(24px, 4vw, 36px); font-weight: 700; color: var(--teal); line-height: 1.15; letter-spacing: -0.02em; }
+    .lang-btn { flex-shrink: 0; margin-top: 4px; font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600; padding: 6px 14px; border: 1.5px solid var(--border); border-radius: 20px; background: transparent; color: var(--text-dim); cursor: pointer; letter-spacing: 0.08em; transition: all 0.2s; }
+    .lang-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* PROGRESS */
+    .progress-wrap { display: flex; align-items: center; gap: 6px; margin-bottom: 32px; flex-wrap: wrap; }
+    .progress-step { display: flex; align-items: center; gap: 5px; font-family: 'Geist Mono', monospace; font-size: 10px; font-weight: 500; color: var(--text-dim); letter-spacing: 0.04em; cursor: pointer; transition: color 0.2s; padding: 4px 0; }
+    .progress-step:hover  { color: var(--teal); }
+    .progress-step.active { color: var(--teal); }
+    .progress-step.done   { color: var(--green); }
+    .progress-step.partial{ color: var(--amber); }
+    .progress-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background 0.3s; flex-shrink: 0; }
+    .progress-step.active  .progress-dot { background: var(--teal); }
+    .progress-step.done    .progress-dot { background: var(--green); }
+    .progress-step.partial .progress-dot { background: var(--amber); }
+    .progress-line { flex: 1; height: 1px; background: var(--border); min-width: 12px; }
+
+    /* CARD */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; box-shadow: 0 2px 20px rgba(0,59,70,0.06); }
+    .card-title { font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--teal); margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+
+    /* FIELD */
+    .field { margin-bottom: 18px; }
+    .field-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .field-label-row label { font-size: 13px; font-weight: 500; color: var(--text); }
+    .field input[type="number"] { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Geist Mono', monospace; font-size: 14px; color: var(--text); background: var(--bg); transition: border-color 0.2s, box-shadow 0.2s; outline: none; appearance: textfield; -moz-appearance: textfield; }
+    .field input::-webkit-inner-spin-button, .field input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .field input::placeholder { color: #b0bec5; font-size: 12px; font-style: italic; }
+    .field input:focus { border-color: var(--teal-light); box-shadow: 0 0 0 3px rgba(0,107,122,0.12); }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .field-grid { grid-template-columns: 1fr; } }
+
+    /* TOOLTIP */
+    .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--text-dim); font-size: 10px; font-weight: 700; color: var(--text-dim); cursor: pointer; transition: border-color 0.2s, color 0.2s; flex-shrink: 0; line-height: 1; user-select: none; }
+    .info-icon:hover { border-color: var(--teal); color: var(--teal); }
+    .tooltip-popup { position: fixed; z-index: 9999; background: var(--teal); color: white; border-radius: 10px; padding: 12px 14px; font-size: 12px; line-height: 1.55; max-width: 280px; box-shadow: 0 8px 24px rgba(0,59,70,0.3); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+    .tooltip-popup.visible { opacity: 1; }
+    .tooltip-popup strong { color: var(--green); }
+
+    /* INFO BOX */
+    .info-box-wrap { margin-top: 20px; min-height: 56px; }
+    .info-box { background: rgba(0,59,70,0.04); border: 1px solid rgba(0,59,70,0.12); border-radius: 10px; padding: 13px 15px; font-size: 13px; color: var(--text-dim); line-height: 1.6; visibility: hidden; }
+    .info-box.visible { visibility: visible; }
+    .info-box strong { color: var(--teal); }
+
+    /* LIVE BADGES */
+    .live-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+    @media (max-width: 560px) { .live-row { grid-template-columns: 1fr 1fr; } }
+    .live-badge { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .lb-label { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.13em; color: var(--text-dim); margin-bottom: 5px; display: flex; align-items: center; gap: 4px; }
+    .lb-val { font-family: 'Geist Mono', monospace; font-size: 16px; font-weight: 600; color: var(--teal); }
+    .lb-sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+    .lb-loading { font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+    /* SLIDER */
+    .slider-wrap { margin-bottom: 28px; }
+    .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .slider-label-row { display: flex; align-items: center; gap: 6px; }
+    .slider-label-row label { font-size: 13px; font-weight: 500; color: var(--text); }
+    .slider-value { font-family: 'Geist Mono', monospace; font-size: 14px; font-weight: 600; color: var(--teal); }
+    .slider-hint { display: flex; justify-content: space-between; font-size: 10px; font-family: 'Geist Mono', monospace; color: var(--text-dim); margin-top: 6px; }
+    input[type="range"] { appearance: none; -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; outline: none; background: linear-gradient(to right, var(--teal) var(--val,50%), var(--border) var(--val,50%)); }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--teal); border: 3px solid white; box-shadow: 0 1px 6px rgba(0,59,70,0.3); cursor: pointer; transition: transform 0.15s; }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+    /* BUTTONS */
+    .nav-row { display: flex; justify-content: space-between; margin-top: 28px; gap: 12px; }
+    .btn { padding: 11px 24px; border-radius: 9px; font-family: 'Geist', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
+    .btn-primary { background: var(--teal); color: white; box-shadow: 0 2px 12px rgba(0,59,70,0.25); }
+    .btn-primary:hover { background: var(--teal-mid); transform: translateY(-1px); }
+    .btn-cta { background: var(--gold); color: var(--teal); }
+    .btn-cta:hover { background: #c9a030; transform: translateY(-1px); }
+
+    /* RESULTS */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+    .top-bar-title { font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); }
+    .currency-toggle { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .toggle-btn { padding: 8px 20px; font-family: 'Geist Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; cursor: pointer; border: none; background: transparent; color: var(--text-dim); transition: all 0.2s; }
+    .toggle-btn.active { background: var(--teal); color: white; }
+    .roi-banner { background: linear-gradient(135deg, var(--teal) 0%, var(--teal-mid) 100%); border-radius: 14px; padding: 22px 26px; color: white; margin-bottom: 22px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .roi-block { flex: 1; min-width: 110px; }
+    .roi-label { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; margin-bottom: 4px; }
+    .roi-val { font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 700; color: var(--green); }
+    .roi-unit { font-size: 11px; opacity: 0.65; margin-left: 3px; }
+    .roi-divider { width: 1px; height: 42px; background: rgba(255,255,255,0.18); flex-shrink: 0; }
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+    @media (max-width: 520px) { .results-grid { grid-template-columns: 1fr; } }
+    .stat-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px 17px; }
+    .stat-label { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; }
+    .stat-value { font-family: 'Geist Mono', monospace; font-size: 16px; font-weight: 600; color: var(--teal); }
+    .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .stat-card.gold  .stat-value { color: var(--gold-dim); }
+    .stat-card.green .stat-value { color: #3a7d1e; }
+    .chart-meta { font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.06em; color: #90a4ae; margin-bottom: 10px; }
+    .chart-wrap { height: 320px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 26px; }
+
+    /* STEP ANIM */
+    .step { display: none; animation: fadeUp 0.28s ease; }
+    .step.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .loading { display: none; align-items: center; justify-content: center; gap: 10px; color: var(--text-dim); font-size: 13px; font-family: 'Geist Mono', monospace; padding: 48px; }
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 520px) { .sim-wrapper { padding: 28px 16px 60px; } .card { padding: 22px 16px; } .roi-banner { padding: 18px; gap: 14px; } }
+  </style>
+</head>
+<body>
+
+<div id="tooltipEl" class="tooltip-popup"></div>
+
+
+<div class="sim-wrapper">
+  <!-- HEADER -->
+  <div class="sim-header">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px;">
+      <a href="https://yoursite.com" style="display:flex; align-items:center; gap:9px; text-decoration:none;">
+        <img src="favicon.png" alt="ABC" style="width:26px; height:26px;" />
+        <span style="font-family:'Geist',sans-serif; font-size:14px; font-weight:600; color:var(--teal);">ABC</span>
+      </a>
+      <button type="button" id="langToggle" class="lang-btn" onclick="toggleLang()">EN</button>
+    </div>
+    <div id="siteLabel" class="label">ABC Enerji &amp; Finans · ROI Simülatörü</div>
+    <h1 id="siteTitle">Finansal Madencilik Yatırım<br>Analiz Aracı</h1>
+  </div>
+
+  <div class="progress-wrap" id="progressBar"></div>
+
+  <!-- ══ STEP 1 — ASIC ════════════════════════════════════ -->
+  <div class="step active" id="step-1">
+    <div class="card">
+      <div class="card-title" id="s1Title">01 — ASIC Parametreleri</div>
+      <div class="field-grid">
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-unitPrice">Birim Fiyat</label>
+            <span class="info-icon" data-key="unitPrice">i</span>
+          </div>
+          <input type="number" id="asicPrice" placeholder="örn. 4000 — cihaz başı USD" min="0" step="1" oninput="onAsicInput()" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-power">Güç Tüketimi</label>
+            <span class="info-icon" data-key="power">i</span>
+          </div>
+          <input type="number" id="asicPower" placeholder="örn. 12000 — Watt/cihaz" min="0" step="1" oninput="onAsicInput()" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-hashrate">Hashrate</label>
+            <span class="info-icon" data-key="hashrate">i</span>
+          </div>
+          <input type="number" id="asicHash" placeholder="örn. 800 — TH/s" min="0" step="0.1" oninput="onAsicInput()" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-depreciation">Amortisman Süresi</label>
+            <span class="info-icon" data-key="depreciation">i</span>
+          </div>
+          <input type="number" id="asicDepreciation" placeholder="örn. 48 — ay" min="1" max="120" step="1" oninput="onAsicInput()" />
+        </div>
+      </div>
+
+      <div class="live-row">
+        <div class="live-badge">
+          <div class="lb-label" id="lbl-btcprice">BTC Fiyatı</div>
+          <div class="lb-val" id="lb-price"><span class="lb-loading" id="lb-price-loading">yükleniyor…</span></div>
+          <div class="lb-sub" id="sub-btcprice">USD · 24sa ort.</div>
+        </div>
+        <div class="live-badge">
+          <div class="lb-label" id="lbl-nethash">Ağ Hash</div>
+          <div class="lb-val" id="lb-hash"><span class="lb-loading" id="lb-hash-loading">yükleniyor…</span></div>
+          <div class="lb-sub" id="sub-nethash">PH/s · anlık</div>
+        </div>
+        <div class="live-badge">
+          <div class="lb-label">
+            <span id="lbl-hashprice">Hash Fiyatı</span>
+            <span class="info-icon" data-key="hashPrice">i</span>
+          </div>
+          <div class="lb-val" id="lb-hashprice">—</div>
+          <div class="lb-sub" id="sub-hashprice">USD / TH/s / gün</div>
+        </div>
+        <div class="live-badge">
+          <div class="lb-label">
+            <span id="lbl-rigprice">Rig Fiyatı</span>
+            <span class="info-icon" data-key="rigPrice">i</span>
+          </div>
+          <div class="lb-val" id="lb-rigprice">—</div>
+          <div class="lb-sub" id="sub-rigprice">USD / TH/s</div>
+        </div>
+      </div>
+
+      <div class="info-box-wrap">
+        <div class="info-box" id="asicInfo"></div>
+      </div>
+      <div class="nav-row">
+        <div></div>
+        <button type="button" id="btn-next1" class="btn btn-primary" onclick="goStep(2)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 2 — CAPITAL ══════════════════════════════════ -->
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="card-title" id="s2Title">02 — Sermaye &amp; Altyapı</div>
+      <div class="field-grid">
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-maxBudget">Maksimum Sermaye Bütçesi</label>
+            <span class="info-icon" data-key="maxBudget">i</span>
+          </div>
+          <input type="number" id="capitalBudget" placeholder="örn. 50000 — toplam kullanılabilir USD" min="0" step="100" oninput="updateCapitalInfo()" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-otherCapex">Diğer Tek Seferlik Yatırım</label>
+            <span class="info-icon" data-key="otherCapex">i</span>
+          </div>
+          <input type="number" id="otherCapex" placeholder="örn. 2000 — raf, soğutma, kablolama" min="0" step="100" oninput="updateCapitalInfo()" />
+        </div>
+      </div>
+      <div class="info-box-wrap">
+        <div class="info-box" id="capitalInfo"></div>
+      </div>
+      <div class="nav-row">
+        <button type="button" id="btn-back2" class="btn btn-secondary" onclick="goStep(1)">← Geri</button>
+        <button type="button" id="btn-next2" class="btn btn-primary" onclick="goStep(3)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 3 — OPEX ════════════════════════════════════ -->
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="card-title" id="s3Title">03 — Operasyonel Parametreler</div>
+      <div class="field-grid">
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-elecPrice">Elektrik Fiyatı</label>
+            <span class="info-icon" data-key="elecPrice">i</span>
+          </div>
+          <input type="number" id="elecPrice" placeholder="örn. 0.07 — $/kWh" min="0" step="0.001" oninput="updateOpexInfo()" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-activeHours">Aktif Çalışma Yüzdesi</label>
+            <span class="info-icon" data-key="activeHours">i</span>
+          </div>
+          <input type="number" id="activeHours" placeholder="örn. 95 — %" min="0" max="100" step="1" oninput="updateOpexInfo()" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-otherOpex">Diğer Aylık Gider</label>
+            <span class="info-icon" data-key="otherOpex">i</span>
+          </div>
+          <input type="number" id="otherOpex" placeholder="örn. 200 — $/ay" min="0" step="10" oninput="updateOpexInfo()" />
+        </div>
+      </div>
+      <div class="info-box-wrap">
+        <div class="info-box" id="opexInfo"></div>
+      </div>
+      <div class="nav-row">
+        <button type="button" id="btn-back3" class="btn btn-secondary" onclick="goStep(2)">← Geri</button>
+        <button type="button" id="btn-next3" class="btn btn-primary" onclick="goStep(4)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 4 — ECONOMICS ════════════════════════════════ -->
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="card-title" id="s4Title">04 — Madencilik Ekonomisi</div>
+      <div class="field-grid">
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-poolFee">Havuz Ücreti</label>
+            <span class="info-icon" data-key="poolFee">i</span>
+          </div>
+          <input type="number" id="poolFee" placeholder="örn. 1 — %" min="0" max="10" step="0.1" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-txFee">Tx Fee Katkısı</label>
+            <span class="info-icon" data-key="txFee">i</span>
+          </div>
+          <input type="number" id="txFeeBoost" placeholder="örn. 8 — % blok ödülünün" min="0" max="100" step="1" />
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label id="l-taxRate">Vergi Oranı</label>
+            <span class="info-icon" data-key="taxRate">i</span>
+          </div>
+          <input type="number" id="taxRate" placeholder="örn. 20 — %" min="0" max="100" step="1" />
+        </div>
+      </div>
+      <div class="nav-row">
+        <button type="button" id="btn-back4" class="btn btn-secondary" onclick="goStep(3)">← Geri</button>
+        <button type="button" id="btn-next4" class="btn btn-primary" onclick="goStep(5)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 5 — MARKET MODEL ════════════════════════════ -->
+  <div class="step" id="step-5">
+    <div class="card">
+      <div class="card-title" id="s5Title">05 — Piyasa Modeli</div>
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <div class="slider-label-row">
+            <label id="l-priceReg">BTC Fiyat Regresyonu</label>
+            <span class="info-icon" data-key="priceReg">i</span>
+          </div>
+          <span class="slider-value" id="priceConfVal">50%</span>
+        </div>
+        <input type="range" id="priceConf" min="0" max="100" value="50" oninput="syncSlider(this,'priceConfVal')" />
+        <div class="slider-hint">
+          <span id="sh-flatPrice">Sabit — güncel fiyat</span>
+          <span id="sh-plPrice">Güç yasası regresyonu</span>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <div class="slider-label-row">
+            <label id="l-hashReg">Ağ Hashrate Regresyonu</label>
+            <span class="info-icon" data-key="hashReg">i</span>
+          </div>
+          <span class="slider-value" id="hashConfVal">50%</span>
+        </div>
+        <input type="range" id="hashConf" min="0" max="100" value="50" oninput="syncSlider(this,'hashConfVal')" />
+        <div class="slider-hint">
+          <span id="sh-flatHash">Sabit — güncel hashrate</span>
+          <span id="sh-plHash">Güç yasası regresyonu</span>
+        </div>
+      </div>
+      <div id="stepWarning" style="display:none; background:rgba(232,160,32,0.1); border:1px solid rgba(232,160,32,0.35); border-radius:8px; padding:11px 14px; font-size:12px; font-family:'Geist Mono',monospace; color:#8a5a00; margin-bottom:16px;"></div>
+      <div class="nav-row">
+        <button type="button" id="btn-back5" class="btn btn-secondary" onclick="goStep(4)">← Geri</button>
+        <button type="button" id="btn-runSim" class="btn btn-cta" onclick="runSimulation()">Simülasyonu Çalıştır →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 6 — RESULTS ══════════════════════════════════ -->
+  <div class="step" id="step-6">
+    <div class="loading" id="loadingMsg" style="display:flex;">
+      <div class="spinner"></div> <span id="loadingText">Simülasyon çalışıyor…</span>
+    </div>
+    <div id="resultsContent" style="display:none;">
+      <div class="top-bar">
+        <div class="top-bar-title" id="resultsTitle">Sonuçlar</div>
+        <div class="currency-toggle">
+          <button class="toggle-btn active" id="togUSD" onclick="toggleCurrency('USD')">USD $</button>
+          <button class="toggle-btn"        id="togBTC" onclick="toggleCurrency('BTC')">BTC ₿</button>
+        </div>
+      </div>
+      <div class="roi-banner">
+        <div class="roi-block">
+          <div class="roi-label" id="roi-label-1">Başabaş Noktası</div>
+          <div><span class="roi-val" id="roiMonth">—</span><span class="roi-unit" id="roiMonthUnit"></span></div>
+        </div>
+        <div class="roi-divider"></div>
+        <div class="roi-block">
+          <div class="roi-label" id="roi-label-2">Dönem Sonu Kârı</div>
+          <div><span class="roi-val" id="finalProfit">—</span><span class="roi-unit" id="finalProfitUnit"></span></div>
+        </div>
+        <div class="roi-divider"></div>
+        <div class="roi-block">
+          <div class="roi-label" id="roi-label-3">Toplam Yatırım</div>
+          <div><span class="roi-val" id="bannerCapex">—</span><span class="roi-unit" id="bannerCapexUnit"></span></div>
+        </div>
+      </div>
+      <div class="results-grid" id="statsGrid"></div>
+      <div class="chart-meta" id="chartMeta"></div>
+      <div class="chart-wrap">
+        <canvas id="mainChart"></canvas>
+      </div>
+      <div class="nav-row">
+        <button type="button" id="btn-back6" class="btn btn-secondary" onclick="goStep(5)">← Geri</button>
+        <div style="display:flex; gap:10px;">
+          <button type="button" id="btn-recalc" class="btn btn-cta" onclick="resetSim(); runSimulation()">↺ Yeniden Hesapla</button>
+          <button type="button" id="btn-newSim" class="btn btn-primary" onclick="goStep(1); resetSim()">Yeni Simülasyon</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /sim-wrapper -->
+
+<!-- ── TOOLTIP ─────────────────────────────────────────── -->
+<script>
+  const tooltipEl = document.getElementById('tooltipEl');
+  document.addEventListener('mouseover', e => {
+    const ic = e.target.closest('.info-icon');
+    if (!ic) return;
+    tooltipEl.innerHTML = ic.getAttribute('data-tip') || '';
+    tooltipEl.classList.add('visible');
+  });
+  document.addEventListener('mousemove', e => {
+    if (!e.target.closest('.info-icon')) { tooltipEl.classList.remove('visible'); return; }
+    tooltipEl.style.left = Math.min(e.clientX + 14, window.innerWidth - 295) + 'px';
+    tooltipEl.style.top  = (e.clientY + 14) + 'px';
+  });
+  document.addEventListener('mouseout', e => {
+    if (!e.target.closest('.info-icon')) tooltipEl.classList.remove('visible');
+  });
+</script>
+
+<!-- ── MAIN ────────────────────────────────────────────── -->
+<script>
+  // ─── CONSTANTS ────────────────────────────────────────
+  const GENESIS        = new Date("2009-01-03");
+  const HASH_ORIGIN    = new Date("2013-01-01");
+  const LAST_HALVING   = new Date("2024-04-19");
+  const BLOCKS_PER_DAY = 144;
+  const HALVING_BLOCKS = 210000;
+  const DAYS_PER_MONTH = 30.44;
+  const HALVING_MONTHS = HALVING_BLOCKS / (BLOCKS_PER_DAY * DAYS_PER_MONTH);
+  const BLOCK_REWARD   = 3.125;
+  const FALLBACK_PRICE = 90000;
+  const FALLBACK_HASH  = 800000000;
+
+  let livePrice       = null;
+  let liveHash        = null;
+  let livePriceFailed = false;
+  let liveHashFailed  = false;
+  let step5Touched    = false;
+  let currentLang     = 'tr';
+
+  // ─── TRANSLATIONS ─────────────────────────────────────
+  const T = {
+    tr: {
+      stepLabels:    ['ASIC','Sermaye','Gider','Ekonomi','Piyasa','Sonuçlar'],
+      siteLabel:     'ABC Enerji & Finans · ROI Simülatörü',
+      siteH1:        'Finansal Madencilik Yatırım<br>Analiz Aracı',
+      s1title:       '01 — ASIC Parametreleri',
+      lUnitPrice:    'Birim Fiyat',
+      phUnitPrice:   'örn. 4000 — cihaz başı USD',
+      lPower:        'Güç Tüketimi',
+      phPower:       'örn. 12000 — Watt/cihaz',
+      lHashrate:     'Hashrate',
+      phHashrate:    'örn. 800 — TH/s',
+      lDepreciation: 'Amortisman Süresi',
+      phDepreciation:'örn. 48 — ay',
+      lbBTCPrice:    'BTC Fiyatı',
+      lbBTCPriceSub: 'USD · 24sa ort.',
+      lbNetHash:     'Ağ Hash',
+      lbNetHashSub:  'PH/s · anlık',
+      lbHashPrice:   'Hash Fiyatı',
+      lbHashPriceSub:'USD / TH/s / gün',
+      lbRigPrice:    'Rig Fiyatı',
+      lbRigPriceSub: 'USD / TH/s',
+      fetching:      'yükleniyor…',
+      s2title:       '02 — Sermaye &amp; Altyapı',
+      lMaxBudget:    'Maksimum Sermaye Bütçesi',
+      phMaxBudget:   'örn. 50000 — toplam kullanılabilir USD',
+      lOtherCapex:   'Diğer Tek Seferlik Yatırım',
+      phOtherCapex:  'örn. 2000 — raf, soğutma, kablolama',
+      s3title:       '03 — Operasyonel Parametreler',
+      lElecPrice:    'Elektrik Fiyatı',
+      phElecPrice:   'örn. 0.07 — $/kWh',
+      lActiveHours:  'Aktif Çalışma Yüzdesi',
+      phActiveHours: 'örn. 95 — %',
+      lOtherOpex:    'Diğer Aylık Gider',
+      phOtherOpex:   'örn. 200 — $/ay',
+      s4title:       '04 — Madencilik Ekonomisi',
+      lPoolFee:      'Havuz Ücreti',
+      phPoolFee:     'örn. 1 — %',
+      lTxFee:        'Tx Fee Katkısı',
+      phTxFee:       'örn. 8 — blok ödülüne kıyasla %',
+      lTaxRate:      'Vergi Oranı',
+      phTaxRate:     'örn. 20 — %',
+      s5title:       '05 — Piyasa Modeli',
+      lPriceReg:     'BTC Fiyat Regresyonu',
+      lHashReg:      'Ağ Hashrate Regresyonu',
+      shFlatPrice:   'Sabit — güncel fiyat',
+      shPLPrice:     'Power Law regresyonu',
+      shFlatHash:    'Sabit — güncel hashrate',
+      shPLHash:      'Power Law regresyonu',
+      btnRunSim:     'Simülasyonu Çalıştır →',
+      btnNext:       'İleri →',
+      btnBack:       '← Geri',
+      resultsTitle:  'Sonuçlar',
+      roiBreakEven:  'Başabaş Noktası',
+      roiEndProfit:  'Dönem Sonu Kârı',
+      roiTotalCapex: 'Toplam Yatırım',
+      loadingText:   'Simülasyon çalışıyor…',
+      moUnit:        ' ay',
+      statUnits:     'Satın Alınan Cihaz',
+      statUnitsSub:  'cihaz aktif',
+      statMonthlyOpex:    'Aylık Gider',
+      statMonthlyOpexSub: 'elektrik + diğer',
+      statTotalHash: 'Toplam Hashrate',
+      statDailyEnergy: 'Günlük Enerji',
+      statBTCPrice:  'Anlık BTC Fiyatı',
+      statBTCSource: 'coingecko',
+      statNetHash:   'Ağ Hashrate',
+      statNetSource: 'mempool.space',
+      statFallback:  'yedek değer — bağlantı yok',
+      chartMetaUSD:  'Yeşil = Kârı USD olarak tut  ·  Mavi = Kârı BTC olarak tut  ·  Sarı kesikli = Sermaye ile BTC al (Kıyas için) ·  Mor kesikli = Sermayeyi USD olarak tut (Kıyas için)',
+      chartMetaBTC:  'Yeşil = Kârı USD olarak tut  ·  Mavi = Kârı BTC olarak tut  ·  Sar kesikli = Sermaye ile BTC al (Kıyas için) ·  Mor kesikli = Sermayeyi USD olarak tut (Kıyas için)',
+      dsLiquidate:   'USD olarak tut',
+      dsHold:        'BTC olarak tut',
+      dsBuyBTC:      'Sermayeyle BTC Al',
+      dsKeepCash:    'Sermayeyi USD olarak beklet',
+      btnRecalc:     '↺ Yeniden Hesapla',
+      btnNewSim:     'Yeni Simülasyon',
+      warnIncomplete: (names) => `Eksik adımlar: ${names}. Lütfen tüm zorunlu alanları doldurun.`,
+      asicInfo: (ratio, months) => `Rig/Hash Fiyat Oranı: <strong>${ratio} gün</strong> — Simülasyon penceresi: <strong>${months} ay</strong>`,
+      capitalInfo: (forASIC, units, spent, leftover, totalCap, asicPrice) => {
+        let h = `Altyapı sonrası: <strong>$${forASIC.toLocaleString()}</strong> madenci için ayrıldı`;
+        if (asicPrice && units !== null) {
+          h += ` → <strong>${units} cihaz</strong> için <strong>$${spent.toLocaleString()} </strong>harcandı`;
+          if (leftover > 0) h += `, <strong>$${leftover.toLocaleString()}</strong> kullanılmadı`;
+          h += `.<br>Toplam Yatırım: <strong>$${totalCap.toLocaleString()}</strong>`;
+        } else {
+          h += `<br><em style="font-size:11px">Cihaz sayısını görmek için ASIC birim fiyatını (adım 1) girin.</em>`;
+        }
+        return h;
+      },
+      opex: {
+        daily:   'Günlük enerji: ',
+        cost:    ' — maliyet: ',
+        monthly: '<br>Aylık elektrik: ',
+        other:   ' + diğer = ',
+        total:   '/ay toplam gider',
+        ratio:   (r) => `<br>Gider, tahmini aylık gelirin <strong>%${r}</strong>'i`,
+        empty:   'Maliyet özetini görmek için elektrik fiyatı ve çalışma yüzdesini girin.',
+      },
+    },
+    en: {
+      stepLabels:    ['ASIC','Capital','Opex','Economics','Market','Results'],
+      siteLabel:     'ABC Energy & Finance · ROI Simulator',
+      siteH1:        'Financial Mining Investment<br>Analysis Tool',
+      s1title:       '01 — ASIC Parameters',
+      lUnitPrice:    'Unit Price',
+      phUnitPrice:   'e.g. 4000 — USD per unit',
+      lPower:        'Power Consumption',
+      phPower:       'e.g. 12000 — Watts per unit',
+      lHashrate:     'Hashrate',
+      phHashrate:    'e.g. 800 — TH/s',
+      lDepreciation: 'Depreciation Period',
+      phDepreciation:'e.g. 48 — months',
+      lbBTCPrice:    'BTC Price',
+      lbBTCPriceSub: 'USD · 24hr avg',
+      lbNetHash:     'Network Hash',
+      lbNetHashSub:  'PH/s · live',
+      lbHashPrice:   'Hash Price',
+      lbHashPriceSub:'USD / TH/s / day',
+      lbRigPrice:    'Rig Price',
+      lbRigPriceSub: 'USD / TH/s',
+      fetching:      'fetching…',
+      s2title:       '02 — Capital &amp; Infrastructure',
+      lMaxBudget:    'Max Capital Budget',
+      phMaxBudget:   'e.g. 50000 — total USD available',
+      lOtherCapex:   'Other One-time Capex',
+      phOtherCapex:  'e.g. 2000 — racks, cooling, wiring',
+      s3title:       '03 — Operational Parameters',
+      lElecPrice:    'Electricity Price',
+      phElecPrice:   'e.g. 0.07 — $/kWh',
+      lActiveHours:  'Active Hours Percentage',
+      phActiveHours: 'e.g. 95 — %',
+      lOtherOpex:    'Other Monthly Opex',
+      phOtherOpex:   'e.g. 200 — $/month',
+      s4title:       '04 — Mining Economics',
+      lPoolFee:      'Pool Fee',
+      phPoolFee:     'e.g. 1 — %',
+      lTxFee:        'Tx Fee Boost',
+      phTxFee:       'e.g. 8 — % of block reward',
+      lTaxRate:      'Tax Rate',
+      phTaxRate:     'e.g. 20 — %',
+      s5title:       '05 — Market Model',
+      lPriceReg:     'BTC Price Regression',
+      lHashReg:      'Network Hashrate Regression',
+      shFlatPrice:   "Flat — today's price",
+      shPLPrice:     'Power-law regression',
+      shFlatHash:    "Flat — today's hashrate",
+      shPLHash:      'Power-law regression',
+      btnRunSim:     'Run Simulation →',
+      btnNext:       'Next →',
+      btnBack:       '← Back',
+      resultsTitle:  'Results',
+      roiBreakEven:  'Break-even',
+      roiEndProfit:  'End-of-window Profit',
+      roiTotalCapex: 'Total Capex',
+      loadingText:   'Running simulation…',
+      moUnit:        ' mo',
+      statUnits:     'Units Purchased',
+      statUnitsSub:  'devices deployed',
+      statMonthlyOpex:    'Monthly Opex',
+      statMonthlyOpexSub: 'electricity + other',
+      statTotalHash: 'Total Hashrate',
+      statDailyEnergy: 'Daily Energy',
+      statBTCPrice:  'Live BTC Price',
+      statBTCSource: 'coingecko',
+      statNetHash:   'Network Hashrate',
+      statNetSource: 'mempool.space',
+      statFallback:  'fallback — no connection',
+      chartMetaUSD:  'Green = Liquidate profit  ·  Blue = Hold profit in BTC  ·  Yellow dashed = Buy BTC with Capex benchmark  ·  Purple dashed = Keep Capex Cash benchmark',
+      chartMetaBTC:  'Green = Liquidate profit  ·  Blue = Hold profit in BTC  ·  Yellow dashed = Buy BTC with Capex benchmark  ·  Purple dashed = Keep Capex Cash benchmark',
+      dsLiquidate:   'Hold as USD',
+      dsHold:        'Hold as BTC',
+      dsBuyBTC:      'Buy BTC with Capex',
+      dsKeepCash:    'Keep Capex as Cash',
+      btnRecalc:     '↺ Recalculate',
+      btnNewSim:     'New Simulation',
+      warnIncomplete: (names) => `Incomplete steps: ${names}. Please fill all required fields before running.`,
+      asicInfo: (ratio, months) => `Rigprice to Hashprice Ratio: <strong>${ratio} days</strong> — Simulation window: <strong>${months} months</strong>`,
+      capitalInfo: (forASIC, units, spent, leftover, totalCap, asicPrice) => {
+        let h = `After infrastructure: <strong>$${forASIC.toLocaleString()}</strong> for miners`;
+        if (asicPrice && units !== null) {
+          h += ` → <strong>${units} unit${units!==1?'s':''}</strong> for <strong>$${spent.toLocaleString()}</strong>`;
+          if (leftover > 0) h += `, <strong>$${leftover.toLocaleString()}</strong> undeployed`;
+          h += `.<br>Total Capex: <strong>$${totalCap.toLocaleString()}</strong>`;
+        } else {
+          h += `<br><em style="font-size:11px">Enter ASIC unit price (step 1) to see unit count.</em>`;
+        }
+        return h;
+      },
+      opex: {
+        daily:   'Daily energy: ',
+        cost:    ' — cost: ',
+        monthly: '<br>Monthly electricity: ',
+        other:   ' + other = ',
+        total:   '/mo total Opex',
+        ratio:   (r) => `<br>Opex is <strong>${r}%</strong> of estimated monthly revenue`,
+        empty:   'Enter electricity price and uptime to see cost summary.',
+      },
+    }
+  };
+
+  // ─── TOOLTIPS ─────────────────────────────────────────
+  const TIPS = {
+    tr: {
+      unitPrice:    `<strong>Birim Fiyat</strong><br>Tek bir ASIC madencisinin satın alma maliyeti (USD). Bütçenizle kaç cihaz alınabileceğini belirler.<br><br>örn. Proto Rig ≈ $4.000`,
+      power:        `<strong>Güç Tüketimi</strong><br>Bir ASIC cihazının Watt cinsinden elektrik tüketimi. Toplam filo tüketimi için cihaz sayısıyla çarpın.<br><br>örn. 12.000 W/cihaz`,
+      hashrate:     `<strong>Hashrate</strong><br>Cihaz başına TH/s (terahash/saniye) cinsinden işlem gücü. Blok ödüllerinden aldığınız pay, toplam ağ hashrate'indeki payınızla orantılıdır.<br><br>örn. 800 TH/s`,
+      depreciation: `<strong>Amortisman Süresi</strong><br>Bu ASIC'in ekonomik olarak uygulanabilir sayıldığı süre (ay). Simülasyon pencerenizi belirler. Tipik aralık: 36–60 ay.`,
+      hashPrice:    `<strong>Hash Fiyatı</strong><br>Mevcut koşullarda TH/s başına günlük brüt gelir.<br><br>Formül: (blokÖdülü × 144 × BTC fiyatı) ÷ ağ hashrate`,
+      rigPrice:     `<strong>Rig Fiyatı</strong><br>Bir TH/s hashrate kapasitesi için gereken sermaye yatırımı maliyeti.<br><br>Formül: Birim Fiyat ÷ Hashrate`,
+      maxBudget:    `<strong>Maksimum Sermaye Bütçesi</strong><br>Kullanılabilir toplam sermayeniz (USD). Altyapı yatırımı önce düşülür; kalan, mümkün olduğunca çok ASIC satın almak için kullanılır.`,
+      otherCapex:   `<strong>Diğer Tek Seferlik Yatırım</strong><br>Peşin ödenen altyapı maliyetleri: soğutma üniteleri, sunucu rafları, PDU'lar, elektrik tesisatı, ağ ekipmanları vb. ASIC satın almadan önce bütçeden düşülür.`,
+      elecPrice:    `<strong>Elektrik Fiyatı</strong><br>kWh başına USD cinsinden maliyet. Genellikle en büyük süregelen giderdir.<br><br>Endüstriyel: $0,03–0,07 / kWh<br>Perakende: $0,10–0,18 / kWh`,
+      activeHours:  `<strong>Aktif Çalışma Yüzdesi</strong><br>24 saatlik süre içinde aktif geçirilen saatlerin yüzdesi. Bakım pencereleri, kesinti ve kısıtlama anlaşmalarını kapsar.<br><br>%100 = her zaman açık`,
+      otherOpex:    `<strong>Diğer Aylık Gider</strong><br>Elektrik dışındaki tekrar eden maliyetler: colocation/hosting ücretleri, bakım sözleşmeleri, internet, izleme hizmetleri vb.`,
+      poolFee:      `<strong>Havuz Ücreti</strong><br>Havuz operatörünün madencilik gelirinizden aldığı yüzde. Büyük havuzların çoğu %0,5–2 ücret alır. Solo madencilik = %0.`,
+      txFee:        `<strong>İşlem Ücreti Katkısı</strong><br>Blok sübvansiyonunun üzerine kazanılan işlem ücretleri (sübvansiyonun yüzdesi). Mempool aktivitesini yansıtır.<br><br>Güncel ortalama: %5–15`,
+      taxRate:      `<strong>Vergi Oranı</strong><br>Aylık net kâra uygulanır (gelir eksi tüm giderler). Vergiler ayrıca ele alınıyorsa veya geçerli değilse 0 girin.`,
+      priceReg:     `<strong>BTC Fiyat Regresyonu</strong><br>Simülasyonun Power Law fiyat modelini ne kadar agresif takip ettiğini kontrol eder.<br><br>%0 → BTC fiyatı boyunca bugünkü değerde sabit kalır.<br>%100 → ~1 yıl içinde regresyon eğrisine yakınsar.`,
+      hashReg:      `<strong>Ağ Hashrate Regresyonu</strong><br>Ağ hashrate'inin Power Law büyüme modelini ne kadar agresif takip ettiğini kontrol eder.<br><br>%0 → hashrate sabit kalır.<br>%100 → ~1 yıl içinde yakınsar.`,
+    },
+    en: {
+      unitPrice:    `<strong>Unit Price</strong><br>Purchase cost of a single ASIC miner in USD. Determines how many units your budget can acquire.<br><br>e.g. Proto Rig ≈ $4,000`,
+      power:        `<strong>Power Consumption</strong><br>Electricity draw of one ASIC unit in Watts. Multiply by unit count for total fleet draw.<br><br>e.g. 12,000 W per device`,
+      hashrate:     `<strong>Hashrate</strong><br>Computing power per device in TH/s (terahashes per second). Your share of block rewards scales proportionally to your fraction of the total network hashrate.<br><br>e.g. 800 TH/s`,
+      depreciation: `<strong>Depreciation Period</strong><br>How long this ASIC is considered economically viable, in months. Defines your simulation window. Typical range: 36–60 months.`,
+      hashPrice:    `<strong>Hash Price</strong><br>Daily gross revenue per TH/s at current conditions.<br><br>Formula: (blockReward × 144 × BTC price) ÷ network hashrate`,
+      rigPrice:     `<strong>Rig Price</strong><br>Capital investment cost for having one TH/s of hashrate capacity.<br><br>Formula: Unit Price ÷ Hashrate`,
+      maxBudget:    `<strong>Max Capital Budget</strong><br>Your total available capital in USD. Infrastructure Capex is subtracted first; the remainder is used to purchase as many ASIC units as possible.`,
+      otherCapex:   `<strong>Other One-time Capex</strong><br>Infrastructure costs paid upfront: cooling units, server racks, PDUs, electrical installation, networking equipment, etc. Subtracted from budget before buying ASICs.`,
+      elecPrice:    `<strong>Electricity Price</strong><br>Cost per kilowatt-hour in USD. Usually the largest ongoing expense.<br><br>Industrial: $0.03–0.07 / kWh<br>Retail: $0.10–0.18 / kWh`,
+      activeHours:  `<strong>Active Hours / Day (%)</strong><br>Percentage of hours spent actively within a 24-hour period. Accounts for maintenance windows, downtime, and curtailment agreements.<br><br>100% = always on`,
+      otherOpex:    `<strong>Other Monthly Opex</strong><br>Recurring costs beyond electricity: colocation / hosting fees, maintenance contracts, internet, monitoring services, etc.`,
+      poolFee:      `<strong>Pool Fee</strong><br>Percentage of mining revenue taken by the pool operator. Most major pools charge 0.5–2%. Solo mining = 0%.`,
+      txFee:        `<strong>Transaction Fee Boost</strong><br>Transaction fees earned on top of the block subsidy, as a percentage of that subsidy. Reflects mempool activity.<br><br>Current average: 5–15%`,
+      taxRate:      `<strong>Tax Rate</strong><br>Applied to monthly net profit (revenue minus all Opex). Set to 0 if taxes are handled separately or not applicable.`,
+      priceReg:     `<strong>BTC Price Regression Confidence</strong><br>Controls how aggressively the simulation follows the power-law price model over time.<br><br>0% → BTC price stays flat at today's value throughout.<br>100% → price converges toward the regression curve within ~1 year.`,
+      hashReg:      `<strong>Network Hashrate Regression Confidence</strong><br>Controls how aggressively the network hashrate follows its power-law growth model.<br><br>0% → hashrate stays flat at today's value.<br>100% → converges toward regression within ~1 year.`,
+    }
+  };
+
+  // ─── APPLY LANGUAGE ───────────────────────────────────
+  function applyLang() {
+    const t = T[currentLang];
+    document.documentElement.lang = currentLang;
+    document.getElementById('langToggle').textContent = currentLang === 'tr' ? 'EN' : 'TR';
+
+    // Header
+    document.getElementById('siteLabel').textContent  = t.siteLabel;
+    document.getElementById('siteTitle').innerHTML    = t.siteH1;
+
+    // Step 1
+    document.getElementById('s1Title').textContent         = t.s1title;
+    document.getElementById('l-unitPrice').textContent     = t.lUnitPrice;
+    document.getElementById('l-power').textContent         = t.lPower;
+    document.getElementById('l-hashrate').textContent      = t.lHashrate;
+    document.getElementById('l-depreciation').textContent  = t.lDepreciation;
+    document.getElementById('asicPrice').placeholder       = t.phUnitPrice;
+    document.getElementById('asicPower').placeholder       = t.phPower;
+    document.getElementById('asicHash').placeholder        = t.phHashrate;
+    document.getElementById('asicDepreciation').placeholder= t.phDepreciation;
+
+    // Badges
+    document.getElementById('lbl-btcprice').textContent  = t.lbBTCPrice;
+    document.getElementById('sub-btcprice').textContent  = t.lbBTCPriceSub;
+    document.getElementById('lbl-nethash').textContent   = t.lbNetHash;
+    document.getElementById('sub-nethash').textContent   = t.lbNetHashSub;
+    document.getElementById('lbl-hashprice').textContent = t.lbHashPrice;
+    document.getElementById('sub-hashprice').textContent = t.lbHashPriceSub;
+    document.getElementById('lbl-rigprice').textContent  = t.lbRigPrice;
+    document.getElementById('sub-rigprice').textContent  = t.lbRigPriceSub;
+    // update fetching text if still loading
+    const plEl = document.getElementById('lb-price-loading');
+    const hlEl = document.getElementById('lb-hash-loading');
+    if (plEl) plEl.textContent = t.fetching;
+    if (hlEl) hlEl.textContent = t.fetching;
+
+    // Step 2
+    document.getElementById('s2Title').innerHTML          = t.s2title;
+    document.getElementById('l-maxBudget').textContent    = t.lMaxBudget;
+    document.getElementById('l-otherCapex').textContent   = t.lOtherCapex;
+    document.getElementById('capitalBudget').placeholder  = t.phMaxBudget;
+    document.getElementById('otherCapex').placeholder     = t.phOtherCapex;
+
+    // Step 3
+    document.getElementById('s3Title').textContent        = t.s3title;
+    document.getElementById('l-elecPrice').textContent    = t.lElecPrice;
+    document.getElementById('l-activeHours').textContent  = t.lActiveHours;
+    document.getElementById('l-otherOpex').textContent    = t.lOtherOpex;
+    document.getElementById('elecPrice').placeholder      = t.phElecPrice;
+    document.getElementById('activeHours').placeholder    = t.phActiveHours;
+    document.getElementById('otherOpex').placeholder      = t.phOtherOpex;
+
+    // Step 4
+    document.getElementById('s4Title').textContent       = t.s4title;
+    document.getElementById('l-poolFee').textContent     = t.lPoolFee;
+    document.getElementById('l-txFee').textContent       = t.lTxFee;
+    document.getElementById('l-taxRate').textContent     = t.lTaxRate;
+    document.getElementById('poolFee').placeholder       = t.phPoolFee;
+    document.getElementById('txFeeBoost').placeholder    = t.phTxFee;
+    document.getElementById('taxRate').placeholder       = t.phTaxRate;
+
+    // Step 5
+    document.getElementById('s5Title').textContent      = t.s5title;
+    document.getElementById('l-priceReg').textContent   = t.lPriceReg;
+    document.getElementById('l-hashReg').textContent    = t.lHashReg;
+    document.getElementById('sh-flatPrice').textContent = t.shFlatPrice;
+    document.getElementById('sh-plPrice').textContent   = t.shPLPrice;
+    document.getElementById('sh-flatHash').textContent  = t.shFlatHash;
+    document.getElementById('sh-plHash').textContent    = t.shPLHash;
+    document.getElementById('btn-runSim').textContent   = t.btnRunSim;
+
+    // Buttons
+    ['btn-next1','btn-next2','btn-next3','btn-next4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = t.btnNext;
+    });
+    ['btn-back2','btn-back3','btn-back4','btn-back5','btn-back6'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = t.btnBack;
+    });
+
+    // Results
+    document.getElementById('resultsTitle').textContent  = t.resultsTitle;
+    document.getElementById('roi-label-1').textContent   = t.roiBreakEven;
+    document.getElementById('roi-label-2').textContent   = t.roiEndProfit;
+    document.getElementById('roi-label-3').textContent   = t.roiTotalCapex;
+    document.getElementById('loadingText').textContent   = t.loadingText;
+    document.getElementById('btn-recalc').textContent    = t.btnRecalc;
+    document.getElementById('btn-newSim').textContent    = t.btnNewSim;
+
+    // Tooltips
+    document.querySelectorAll('.info-icon[data-key]').forEach(el => {
+      const key = el.getAttribute('data-key');
+      if (TIPS[currentLang][key]) el.setAttribute('data-tip', TIPS[currentLang][key]);
+    });
+
+    // Refresh dynamic content
+    renderProgress();
+    onAsicInput();
+    updateCapitalInfo();
+    updateOpexInfo();
+    if (graphData.length) { renderBanner(); renderStats(); drawChart(); }
+  }
+
+  function toggleLang() {
+    currentLang = currentLang === 'tr' ? 'en' : 'tr';
+    applyLang();
+  }
+
+  // ─── FETCH LIVE ON LOAD ───────────────────────────────
+  (async () => {
+    try {
+      const pr = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      const priceJson = await pr.json();
+      livePrice = priceJson.bitcoin.usd;
+    } catch {
+      livePrice = FALLBACK_PRICE;
+      livePriceFailed = true;
+    }
+    try {
+      const hr = await fetch('https://mempool.space/api/v1/mining/hashrate/3d');
+      const hashJson = await hr.json();
+      liveHash = hashJson.currentHashrate / 1e12;
+    } catch {
+      liveHash = FALLBACK_HASH;
+      liveHashFailed = true;
+    }
+
+    document.getElementById('lb-price').textContent = '$' + livePrice.toLocaleString();
+    document.getElementById('lb-hash').textContent  = (liveHash / 1000).toFixed(0) + ' PH/s';
+
+    const t = T[currentLang];
+    if (livePriceFailed) {
+      document.getElementById('lb-price').insertAdjacentHTML('afterend',
+        `<div style="font-size:10px;color:#c0392b;margin-top:3px;">&#9432; ${t.statFallback}</div>`);
+    }
+    if (liveHashFailed) {
+      document.getElementById('lb-hash').insertAdjacentHTML('afterend',
+        `<div style="font-size:10px;color:#c0392b;margin-top:3px;">&#9432; ${t.statFallback}</div>`);
+    }
+
+    updateHashPriceBadges();
+    onAsicInput();
+  })();
+
+  function updateHashPriceBadges() {
+    if (!livePrice || !liveHash) return;
+    const hp = (BLOCK_REWARD * BLOCKS_PER_DAY * livePrice) / liveHash;
+    document.getElementById('lb-hashprice').textContent = '$' + hp.toFixed(4);
+    const asicHash = numVal('asicHash');
+    const rigPrice = asicHash ? numVal('asicPrice') / asicHash : null;
+    document.getElementById('lb-rigprice').textContent = rigPrice ? '$' + rigPrice.toFixed(2) : '—';
+    return { hp, rigPrice };
+  }
+
+  // ─── NAVIGATION ───────────────────────────────────────
+  let currentStep = 1;
+
+  function goStep(n) {
+    if (n === 5) {
+      step5Touched = true;
+      document.getElementById('stepWarning').style.display = 'none';
+    }
+    document.getElementById('step-' + currentStep).classList.remove('active');
+    currentStep = n;
+    document.getElementById('step-' + currentStep).classList.add('active');
+    renderProgress();
+    setTimeout(() => document.getElementById('progressBar').scrollIntoView({ behavior: 'smooth' }), 50);
+  }
+
+  function numVal(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const n = parseFloat(el.value);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function isStepDone(n) {
+    if (n === 1) return !!(numVal('asicPrice') && numVal('asicPower') && numVal('asicHash') && numVal('asicDepreciation'));
+    if (n === 2) return !!(numVal('capitalBudget'));
+    if (n === 3) return !!(numVal('elecPrice') && numVal('activeHours'));
+    if (n === 4) return !!(numVal('poolFee') || document.getElementById('poolFee').value !== '') &&
+                         !!(numVal('txFeeBoost') || document.getElementById('txFeeBoost').value !== '') &&
+                         !!(numVal('taxRate') || document.getElementById('taxRate').value !== '');
+    if (n === 5) return step5Touched;
+    return false;
+  }
+  function isStepPartial(n) {
+    if (n === 1) {
+      const cnt = [numVal('asicPrice'),numVal('asicPower'),numVal('asicHash'),numVal('asicDepreciation')].filter(Boolean).length;
+      return cnt > 0 && cnt < 4;
+    }
+    return false;
+  }
+  function stepState(n) {
+    if (n === currentStep) return 'active';
+    if (isStepDone(n))     return 'done';
+    if (isStepPartial(n))  return 'partial';
+    return '';
+  }
+
+  function renderProgress() {
+    const bar = document.getElementById('progressBar');
+    bar.innerHTML = '';
+    const labels = T[currentLang].stepLabels;
+    for (let i = 1; i <= 6; i++) {
+      if (i > 1) { const l = document.createElement('div'); l.className='progress-line'; bar.appendChild(l); }
+      const s = document.createElement('div');
+      s.className = 'progress-step ' + stepState(i);
+      s.innerHTML = `<div class="progress-dot"></div><span>${labels[i-1]}</span>`;
+      s.onclick = () => {
+        if (i === 6) {
+          const incomplete = [1,2,3,4].filter(n => !isStepDone(n));
+          if (incomplete.length) {
+            goStep(5);
+            const names = incomplete.map(n => T[currentLang].stepLabels[n-1]);
+            document.getElementById('stepWarning').textContent = T[currentLang].warnIncomplete(names.join(', '));
+            document.getElementById('stepWarning').style.display = 'block';
+            return;
+          }
+        }
+        goStep(i);
+      };
+      bar.appendChild(s);
+    }
+  }
+
+  // ─── SLIDERS ──────────────────────────────────────────
+  function syncSlider(el, labelId) {
+    document.getElementById(labelId).textContent = el.value + '%';
+    el.style.setProperty('--val', el.value + '%');
+  }
+  document.querySelectorAll('input[type=range]').forEach(r => r.style.setProperty('--val', r.value + '%'));
+
+  // ─── STEP 1 INFO ──────────────────────────────────────
+  function onAsicInput() {
+    const badges = updateHashPriceBadges();
+    const ratio  = (badges && badges.hp && badges.rigPrice) ? (badges.rigPrice / badges.hp).toFixed(0) : null;
+    renderProgress();
+    const price  = numVal('asicPrice');
+    const hash   = numVal('asicHash');
+    const months = numVal('asicDepreciation');
+    const box    = document.getElementById('asicInfo');
+    if (price && hash && months) {
+      box.innerHTML = T[currentLang].asicInfo(ratio, months);
+      box.classList.add('visible');
+    } else {
+      box.classList.remove('visible');
+    }
+  }
+
+  // ─── STEP 2 INFO ──────────────────────────────────────
+  function updateCapitalInfo() {
+    renderProgress();
+    const maxBudget = numVal('capitalBudget');
+    const otherCap  = numVal('otherCapex');
+    const asicPrice = numVal('asicPrice');
+    const box       = document.getElementById('capitalInfo');
+    if (!maxBudget) { box.classList.remove('visible'); return; }
+
+    const forASIC  = Math.max(0, maxBudget - otherCap);
+    const units    = asicPrice ? Math.floor(forASIC / asicPrice) : null;
+    const spent    = units !== null ? units * asicPrice : null;
+    const leftover = units !== null ? forASIC - spent : null;
+    const totalCap = (spent || 0) + otherCap;
+
+    box.innerHTML = T[currentLang].capitalInfo(forASIC, units, spent, leftover, totalCap, asicPrice);
+    box.classList.add('visible');
+  }
+
+  // ─── STEP 3 INFO ──────────────────────────────────────
+  function updateOpexInfo() {
+    renderProgress();
+    const asicPower   = numVal('asicPower');
+    const asicPrice   = numVal('asicPrice');
+    const maxBudget   = numVal('capitalBudget');
+    const otherCap    = numVal('otherCapex');
+    const units       = (asicPrice && maxBudget) ? Math.floor(Math.max(0, maxBudget - otherCap) / asicPrice) : null;
+    const elecPrice   = numVal('elecPrice');
+    const activePct   = numVal('activeHours');
+    const activeRatio = activePct / 100;
+    const otherOpex   = numVal('otherOpex');
+    const box         = document.getElementById('opexInfo');
+    const ox          = T[currentLang].opex;
+
+    if (!elecPrice || !activePct) { box.classList.remove('visible'); return; }
+
+    const totalPowerKW   = (units && asicPower) ? (units * asicPower) / 1000 : null;
+    const dailyKWh       = totalPowerKW ? totalPowerKW * 24 * (activeRatio || 1) : null;
+    const dailyCost      = (dailyKWh && elecPrice) ? dailyKWh * elecPrice : null;
+    const monthlyElec    = dailyCost ? dailyCost * DAYS_PER_MONTH : null;
+    const totalMonthlyOp = (monthlyElec || 0) + otherOpex;
+
+    let html = '';
+    if (dailyKWh)    html += ox.daily  + `<strong>${dailyKWh.toFixed(1)} kWh</strong>`;
+    if (dailyCost)   html += ox.cost   + `<strong>$${dailyCost.toFixed(2)}/` + (currentLang==='tr'?'gün':'day') + `</strong>`;
+    if (monthlyElec) html += ox.monthly + `<strong>$${monthlyElec.toFixed(0)}</strong>`;
+    if (totalMonthlyOp) html += (otherOpex ? ` + $${otherOpex.toFixed(0)}${ox.other}` : '<br>') + `<strong>$${totalMonthlyOp.toFixed(0)}${ox.total}</strong>`;
+
+    if (totalMonthlyOp && livePrice && liveHash && numVal('asicHash') && units) {
+      const hashPrice  = (BLOCK_REWARD * BLOCKS_PER_DAY * livePrice) / liveHash;
+      const monthlyRev = hashPrice * numVal('asicHash') * units * DAYS_PER_MONTH;
+      const r          = monthlyRev > 0 ? (totalMonthlyOp / monthlyRev * 100).toFixed(1) : null;
+      if (r) html += ox.ratio(r);
+    }
+
+    if (!html) html = ox.empty;
+    box.innerHTML = html;
+    box.classList.add('visible');
+  }
+
+  // ─── POWER-LAW ────────────────────────────────────────
+  function daysSince(d, ref) { return Math.max(1, Math.floor((d - ref) / 86400000) + 1); }
+  function plPrice(d) { return 1.6389041947611932e-15 * Math.pow(daysSince(d, GENESIS),     5.2134794972530845); }
+  function plHash(d)  { return 31592.26480208127       * Math.pow(daysSince(d, HASH_ORIGIN), 4.491329780767128) * 1e-12; }
+  function addMonths(base, m) { const d = new Date(base); d.setMonth(d.getMonth() + m); return d; }
+  function monthsSince(date) {
+    const n = new Date();
+    return (n.getFullYear()-date.getFullYear())*12 + (n.getMonth()-date.getMonth());
+  }
+
+  // ─── SIMULATION ───────────────────────────────────────
+  let graphData       = [];
+  let chartInstance   = null;
+  let displayCurrency = 'USD';
+  let simStore        = {};
+
+  async function runSimulation() {
+    const incomplete = [1,2,3,4].filter(n => !isStepDone(n));
+    if (incomplete.length) {
+      const names = incomplete.map(n => T[currentLang].stepLabels[n-1]);
+      document.getElementById('stepWarning').textContent = T[currentLang].warnIncomplete(names.join(', '));
+      document.getElementById('stepWarning').style.display = 'block';
+      return;
+    }
+    document.getElementById('stepWarning').style.display = 'none';
+    goStep(6);
+    document.getElementById('loadingMsg').style.display     = 'flex';
+    document.getElementById('resultsContent').style.display = 'none';
+
+    const actualPrice = livePrice || FALLBACK_PRICE;
+    const actualHash  = liveHash  || FALLBACK_HASH;
+
+    const asicPrice  = numVal('asicPrice')        || 3060;
+    const asicPower  = numVal('asicPower')         || 3468;
+    const asicHash   = numVal('asicHash')          || 204;
+    const simMonths  = numVal('asicDepreciation')  || 48;
+    const maxBudget  = numVal('capitalBudget')     || 50000;
+    const otherCapex = numVal('otherCapex')        || 0;
+    const elecPrice  = numVal('elecPrice')         || 0.07;
+    const activeRat  = (numVal('activeHours')      || 95) / 100;
+    const otherOpex  = numVal('otherOpex')         || 0;
+    const poolFee    = (numVal('poolFee')           || 1)  / 100;
+    const txBoost    = 1 + (numVal('txFeeBoost')   || 8)  / 100;
+    const taxRate    = (numVal('taxRate')           || 0)  / 100;
+    const priceConf  = numVal('priceConf') / 100;
+    const hashConf   = numVal('hashConf')  / 100;
+
+    const forASIC    = Math.max(0, maxBudget - otherCapex);
+    const units      = Math.floor(forASIC / asicPrice);
+    const totalCapex = units * asicPrice + otherCapex;
+    const totalHash  = units * asicHash;
+    const totalPowKW = (units * asicPower) / 1000;
+    const dailyKWh   = totalPowKW * 24 * activeRat;
+    const dailyElec  = dailyKWh * elecPrice;
+    const capexBTC   = totalCapex / actualPrice;
+
+    const now = new Date();
+    const mSinceHalving = monthsSince(LAST_HALVING);
+
+    graphData = [];
+    let blockRew        = BLOCK_REWARD;
+    let cumLiquidateUSD = 0;
+    let cumHoldBTC      = 0;
+    let roiLiq = null, roiHold = null;
+
+    for (let m = 0; m <= simMonths; m++) {
+      if (m + mSinceHalving >= HALVING_MONTHS) blockRew = BLOCK_REWARD / 2;
+
+      const yrs    = m / 12 || 1e-9;
+      const pRat   = 1 - Math.exp(-priceConf * 1.45 * yrs);
+      const hRat   = 1 - Math.exp(-hashConf  * 1.45 * yrs);
+      const td     = addMonths(now, m);
+      const priceM = actualPrice * (1 - pRat) + plPrice(td) * pRat;
+      const hashM  = actualHash  * (1 - hRat) + plHash(td)  * hRat;
+
+      const dailyBTC   = totalHash > 0
+        ? (totalHash * activeRat / hashM) * blockRew * BLOCKS_PER_DAY * txBoost * (1 - poolFee)
+        : 0;
+      const mthBTC     = dailyBTC * DAYS_PER_MONTH;
+      const mthRevUSD  = mthBTC * priceM;
+      const mthOpexUSD = dailyElec * DAYS_PER_MONTH + otherOpex;
+      const mthNetUSD  = (mthRevUSD - mthOpexUSD) * (1 - taxRate);
+      const mthNetBTC  = mthNetUSD / priceM;
+
+      cumLiquidateUSD += mthNetUSD;
+      cumHoldBTC      += mthNetBTC;
+      const holdValUSD = cumHoldBTC * priceM;
+
+      if (roiLiq  === null && holdValUSD >= totalCapex) roiLiq  = m;
+      if (roiHold === null && cumHoldBTC >= capexBTC)   roiHold = m;
+
+      graphData.push({
+        month: m,
+        capexUSD: totalCapex, capexBTC,
+        liquidateUSD: cumLiquidateUSD,
+        liquidateBTC: cumLiquidateUSD / priceM,
+        holdValUSD,
+        holdBTC: cumHoldBTC,
+        priceM, hashM,
+      });
+    }
+
+    const last = graphData[graphData.length - 1];
+    simStore = { units, totalCapex, capexBTC, totalHash, dailyKWh, dailyElec, actualPrice, actualHash, roiLiq, roiHold, last };
+
+    renderBanner();
+    renderStats();
+    drawChart();
+
+    document.getElementById('loadingMsg').style.display     = 'none';
+    document.getElementById('resultsContent').style.display = 'block';
+  }
+
+  function renderBanner() {
+    const { roiLiq, roiHold, last, totalCapex, capexBTC } = simStore;
+    const isUSD = displayCurrency === 'USD';
+    const t     = T[currentLang];
+
+    document.getElementById('roiMonth').textContent =
+      isUSD ? (roiLiq  !== null ? roiLiq  : 'N/A')
+            : (roiHold !== null ? roiHold : 'N/A');
+    document.getElementById('roiMonthUnit').textContent =
+      isUSD ? (roiLiq  !== null ? t.moUnit : '')
+            : (roiHold !== null ? t.moUnit : '');
+
+    const endProfitUSD = last.holdValUSD - totalCapex;
+    const endProfitBTC = last.holdBTC    - capexBTC;
+    document.getElementById('finalProfit').textContent =
+      isUSD ? '$' + endProfitUSD.toLocaleString(undefined,{maximumFractionDigits:0})
+            : endProfitBTC.toFixed(4);
+    document.getElementById('finalProfitUnit').textContent = isUSD ? '' : ' BTC';
+
+    document.getElementById('bannerCapex').textContent =
+      isUSD ? '$' + totalCapex.toLocaleString() : capexBTC.toFixed(4);
+    document.getElementById('bannerCapexUnit').textContent = isUSD ? '' : ' BTC';
+  }
+
+  function renderStats() {
+    const { units, totalHash, dailyKWh, dailyElec, actualPrice, actualHash } = simStore;
+    const t = T[currentLang];
+    const rows = [
+      { label: t.statUnits,       value: units,                                        sub: t.statUnitsSub,       cls: '',      warn: false },
+      { label: t.statMonthlyOpex, value: '$' + (simStore.dailyElec * DAYS_PER_MONTH + numVal('otherOpex')).toFixed(0), sub: t.statMonthlyOpexSub, cls: '', warn: false },
+      { label: t.statTotalHash,   value: totalHash.toLocaleString() + ' TH/s',         sub: '',                   cls: '',      warn: false },
+      { label: t.statDailyEnergy, value: dailyKWh.toFixed(1) + ' kWh',                 sub: '$' + dailyElec.toFixed(2) + '/day', cls: '', warn: false },
+      { label: t.statBTCPrice,    value: '$' + actualPrice.toLocaleString(),            sub: livePriceFailed ? t.statFallback : t.statBTCSource, cls: livePriceFailed ? '' : 'green', warn: livePriceFailed },
+      { label: t.statNetHash,     value: (actualHash/1000).toFixed(0) + ' PH/s',       sub: liveHashFailed  ? t.statFallback : t.statNetSource, cls: '',                             warn: liveHashFailed  },
+    ];
+    document.getElementById('statsGrid').innerHTML = rows.map(r => `
+      <div class="stat-card ${r.cls}">
+        <div class="stat-label">${r.label}</div>
+        <div class="stat-value">${r.value}</div>
+        ${r.sub ? `<div class="stat-sub" style="${r.warn?'color:#c0392b;':''}">${r.sub}</div>` : ''}
+      </div>`).join('');
+  }
+
+  function drawChart() {
+    const isUSD = displayCurrency === 'USD';
+    const t     = T[currentLang];
+    const labels    = graphData.map(d => 'M' + d.month);
+    const liqData   = graphData.map(d => isUSD ? d.liquidateUSD : d.liquidateBTC);
+    const holdData  = graphData.map(d => isUSD ? d.holdValUSD   : d.holdBTC);
+    const fmt = v => isUSD
+      ? '$' + v.toLocaleString(undefined,{maximumFractionDigits:0})
+      : v.toFixed(6) + ' BTC';
+
+    document.getElementById('chartMeta').textContent = isUSD ? t.chartMetaUSD : t.chartMetaBTC;
+
+    if (chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(
+      document.getElementById('mainChart').getContext('2d'),
+      {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: t.dsLiquidate,
+              data: liqData,
+              borderColor: '#9AE66E', backgroundColor: 'rgba(154,230,110,0.07)',
+              borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, fill: true, tension: 0.3
+            },
+            {
+              label: t.dsHold,
+              data: holdData,
+              borderColor: '#00A6FF', backgroundColor: 'rgba(0,166,255,0.05)',
+              borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, fill: false, tension: 0.3
+            },
+            {
+              label: t.dsBuyBTC,
+              data: graphData.map(d => isUSD ? simStore.capexBTC * d.priceM : simStore.capexBTC),
+              borderColor: '#D4AF37', backgroundColor: 'transparent',
+              borderWidth: 2, borderDash: [6,3], pointRadius: 0, fill: false, tension: 0
+            },
+            {
+              label: t.dsKeepCash,
+              data: graphData.map(d => isUSD ? simStore.totalCapex : simStore.totalCapex / d.priceM),
+              borderColor: '#9B59B6', backgroundColor: 'transparent',
+              borderWidth: 2, borderDash: [3,3], pointRadius: 0, fill: false, tension: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font:{ family:"'Geist Mono',monospace", size:11 }, color:'#4a6572', usePointStyle:true, boxWidth:8 } },
+            tooltip: {
+              backgroundColor: '#003B46',
+              titleFont: { family:"'Geist Mono',monospace", size:11 },
+              bodyFont:  { family:"'Geist Mono',monospace", size:11 },
+              padding: 12,
+              callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y) }
+            }
+          },
+          scales: {
+            x: { ticks: { font:{family:"'Geist Mono',monospace",size:10}, color:'#4a6572', maxTicksLimit:13 }, grid: { color:'rgba(0,59,70,0.06)' } },
+            y: {
+              title: { display:true, text: isUSD ? 'USD ($)' : 'BTC', font:{family:"'Geist Mono',monospace",size:11}, color:'#4a6572' },
+              ticks: { font:{family:"'Geist Mono',monospace",size:10}, color:'#4a6572', callback: v => fmt(v) },
+              grid:  { color:'rgba(0,59,70,0.06)' }
+            }
+          }
+        }
+      }
+    );
+  }
+
+  function toggleCurrency(c) {
+    displayCurrency = c;
+    document.getElementById('togUSD').classList.toggle('active', c==='USD');
+    document.getElementById('togBTC').classList.toggle('active', c==='BTC');
+    if (!graphData.length) return;
+    renderBanner(); renderStats(); drawChart();
+  }
+
+  function resetSim() {
+    graphData = []; simStore = {}; displayCurrency = 'USD';
+    document.getElementById('togUSD').classList.add('active');
+    document.getElementById('togBTC').classList.remove('active');
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    renderProgress();
+  }
+
+  // ─── INIT ─────────────────────────────────────────────
+  applyLang();
+</script>
+</body>
 </html>
